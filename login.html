@@ -1,0 +1,86 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Landing Page Login</title>
+  <link rel="stylesheet" href="style2.css">
+</head>
+<body>
+
+    <header>
+        <h1><b>Welcome to Scriptly</b></h1>
+        <p><b>“From speech to smart notes — fast, accurate, effortless.”</b></p>
+    </header>
+    <div class="auth-container">
+        <h2><b>Login</b></h2>
+        <input type="text" id="Email" placeholder="Enter your email">
+        <input type="password" id="password" placeholder="Enter your password">
+        <button id="loginBtn">Login</button>
+        <div class="message" id="message"></div>
+    </div>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scriptly Login</title>
+  <link rel="stylesheet" href="style2.css">
+</head>
+<body>
+
+    <header>
+        <h1><b>Welcome to Scriptly</b></h1>
+        <p><b>“From speech to smart notes — fast, accurate, effortless.”</b></p>
+    </header>
+
+    <div class="auth-container">
+        <h2><b>Login</b></h2>
+        <input type="email" id="email" placeholder="Enter your email">
+        <input type="password" id="password" placeholder="Enter your password">
+        <button id="loginBtn">Login</button>
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('message');
+
+            // Clear previous message
+            messageDiv.textContent = '';
+
+            if(!email || !password){
+                messageDiv.textContent = "Please enter email and password.";
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),// passport-local expects 'username' field
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if(data.error){
+                    messageDiv.textContent = "Error: " + data.error;
+                } else {
+                    messageDiv.textContent = "Login successful!";
+                    window.location.href = "workspace.html"; // redirect to workspace
+                }
+            } catch(err){
+                messageDiv.textContent = "Error connecting to server.";
+                console.error(err);
+            }
+        });
+    </script>
+
+</body>
+</html>

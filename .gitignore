@@ -1,0 +1,18 @@
+# Node
+node_modules
+package-lock.json
+
+# Environment files
+.env
+
+# Python
+venv
+env
+__pycache__/
+*.pyc
+
+# Uploads
+uploads/
+
+# VS Code
+.vscode
