@@ -2,8 +2,17 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { fetchTranscript: fetchTranscriptPlus } = require('youtube-transcript-plus'); // Fallback: web page scraping
-const { YoutubeTranscript } = require('youtube-transcript'); // Primary: Innertube API (Android client)
 const he = require('he');
+
+// youtube-transcript is ESM-only — must use dynamic import() from CommonJS
+// Lazy-loaded once on first use and cached
+let _youtubeTranscriptModule = null;
+async function getYoutubeTranscriptModule() {
+  if (!_youtubeTranscriptModule) {
+    _youtubeTranscriptModule = await import('youtube-transcript');
+  }
+  return _youtubeTranscriptModule;
+}
 
 // ── URL Utilities ──────────────────────────────────────────────
 
@@ -119,6 +128,7 @@ async function getYouTubeTranscript(url, videoIdParam) {
 
   // ── Method 1: youtube-transcript (Innertube/Android API) ──
   try {
+    const { YoutubeTranscript } = await getYoutubeTranscriptModule();
     const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
 
     if (segments && Array.isArray(segments) && segments.length > 0) {
