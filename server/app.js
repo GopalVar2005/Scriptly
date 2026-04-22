@@ -61,14 +61,16 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('CORS not allowed'));
+      // Return false instead of throwing — browser sees missing CORS headers and blocks cleanly
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      callback(null, false);
     }
   },
   credentials: true //Allow cookies to be sent with requests
 }));
 
-// Serve static frontend build
-app.use(express.static(path.join(__dirname, '../client/dist')));
+// NOTE: Frontend is deployed separately on Vercel.
+// No express.static for client/dist — it doesn't exist on Render.
 
 // Request timeout middleware — prevent zombie connections
 app.use((req, res, next) => {
@@ -77,9 +79,7 @@ app.use((req, res, next) => {
   next();
 });
 
-if (!process.env.SESSION_SECRET) {
-  throw new Error("FATAL ERROR: SESSION_SECRET is not defined.");
-}
+// SESSION_SECRET already validated in REQUIRED_ENV check above
 
 // Session with MongoDB store for persistence across restarts
 app.use(session({
@@ -147,12 +147,16 @@ app.use("/api/explain", isLoggedIn, aiLimiter, explainRoutes);
 app.use("/api/quiz", isLoggedIn, aiLimiter, quizRoutes);
 app.use('/api/youtube', isLoggedIn, aiLimiter, youtubeRoutes);
 
-// --- SPA Fallback ---
-// Serve the main frontend page for all other routes
+// --- Catch-All ---
+// Frontend is on Vercel, so no SPA fallback needed here.
+// Just handle unknown API routes and provide a root info endpoint.
+app.get('/', (req, res) => {
+  res.json({ name: 'Scriptly API', status: 'running', health: '/health' });
+});
+
 app.use((req, res, next) => {
-  if (req.method !== 'GET') return next();
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found' });
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  res.status(404).json({ error: 'Not found' });
 });
 
 // --- Error Handling Middleware ---

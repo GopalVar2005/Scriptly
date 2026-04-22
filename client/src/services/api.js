@@ -52,7 +52,8 @@ export async function transcribe(audioBlob) {
 
   const response = await fetch(`${BASE_URL}/transcribe/transcribe`, {
     method: "POST",
-    body: formData
+    body: formData,
+    credentials: 'include'
   });
   return handleResponse(response);
 }
@@ -61,7 +62,8 @@ export async function summarize(text, mode = 'first_pass') {
   const response = await fetch(`${BASE_URL}/summarize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, mode })
+    body: JSON.stringify({ text, mode }),
+    credentials: 'include'
   });
   return handleResponse(response);
 }
