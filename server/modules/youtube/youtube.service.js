@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { fetchTranscript } = require('youtube-transcript-plus'); // Library to fetch YouTube captions
+const { fetchTranscript: fetchTranscriptPlus } = require('youtube-transcript-plus'); // Fallback: web page scraping
+const { YoutubeTranscript } = require('youtube-transcript'); // Primary: Innertube API (Android client)
 const he = require('he');
 
 // ── URL Utilities ──────────────────────────────────────────────
@@ -94,34 +95,57 @@ async function getVideoMetadata(url) {
   }
 }
 
-// ── Captions / Transcript ──────────────────────────────────────
+// ── Helper: clean raw caption text ─────────────────────────────
+
+function cleanCaptionText(rawText) {
+  return rawText
+    .replace(/\s+/g, ' ')       // Normalize whitespace
+    .replace(/\.\s+/g, '.\n\n') // Add paragraph breaks after sentences
+    .replace(/\?\s+/g, '?\n\n') // Add paragraph breaks after questions
+    .replace(/!\s+/g, '!\n\n')  // Add paragraph breaks after exclamations
+    .trim();
+}
+
+// ── Captions / Transcript (Dual-Library Fallback) ──────────────
+//
+// Method 1 (PRIMARY):   youtube-transcript → Innertube API with Android client identity
+//                       Much better success rate from cloud/datacenter IPs
+// Method 2 (FALLBACK):  youtube-transcript-plus → web page scraping
+//                       May work if Innertube is temporarily down
 
 async function getYouTubeTranscript(url, videoIdParam) {
   const videoId = videoIdParam || extractVideoId(url);
   if (!videoId) return null;
 
+  // ── Method 1: youtube-transcript (Innertube/Android API) ──
   try {
-    const segments = await fetchTranscript(videoId, { lang: 'en' });
+    const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
 
     if (segments && Array.isArray(segments) && segments.length > 0) {
-      console.log(`[YouTube] Successfully fetched captions for video: ${videoId}. Items: ${segments.length}`);
+      console.log(`[YouTube] ✅ Method 1 (Innertube) succeeded for: ${videoId}. Items: ${segments.length}`);
       const rawText = segments.map(s => he.decode(s.text)).join(' ');
-      // Clean and structure caption text for better AI processing
-      const cleanedText = rawText
-        .replace(/\s+/g, ' ')       // Normalize whitespace
-        .replace(/\.\s+/g, '.\n\n') // Add paragraph breaks after sentences
-        .replace(/\?\s+/g, '?\n\n') // Add paragraph breaks after questions
-        .replace(/!\s+/g, '!\n\n')  // Add paragraph breaks after exclamations
-        .trim();
-      return cleanedText;
-    } else {
-      console.log(`[YouTube] Caption array empty or invalid for video: ${videoId}.`);
-      return null;
+      return cleanCaptionText(rawText);
     }
   } catch (err) {
-    console.log(`[YouTube] Caption fetch failed for video ${videoId}: ${err.message}.`);
-    return null;
+    console.log(`[YouTube] Method 1 (Innertube) failed for ${videoId}: ${err.message}. Trying fallback...`);
   }
+
+  // ── Method 2: youtube-transcript-plus (web page scraping) ──
+  try {
+    const segments = await fetchTranscriptPlus(videoId, { lang: 'en' });
+
+    if (segments && Array.isArray(segments) && segments.length > 0) {
+      console.log(`[YouTube] ✅ Method 2 (web scrape) succeeded for: ${videoId}. Items: ${segments.length}`);
+      const rawText = segments.map(s => he.decode(s.text)).join(' ');
+      return cleanCaptionText(rawText);
+    }
+  } catch (err) {
+    console.log(`[YouTube] Method 2 (web scrape) also failed for ${videoId}: ${err.message}.`);
+  }
+
+  // Both methods failed
+  console.log(`[YouTube] ❌ All caption methods failed for: ${videoId}`);
+  return null;
 }
 
 // ── Audio Download (DISABLED IN PRODUCTION) ────────────────────
