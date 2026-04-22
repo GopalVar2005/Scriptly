@@ -1,0 +1,87 @@
+/* ===========================
+   HOW IT WORKS SECTION
+=========================== */
+.howitworks {
+  padding: 80px 20px;
+  background: #000;
+  text-align: center;
+}
+
+.howitworks .section-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 60px;
+  background: linear-gradient(90deg, #00c9ff, #c084fc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 50px;
+}
+
+.step-card {
+  background: #111;
+  border-radius: 22px;
+  padding: 40px 30px;
+  width: 340px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.step1 { box-shadow: 0 8px 25px rgba(0, 201, 255, 0.45); }
+.step1:hover { box-shadow: 0 12px 35px rgba(0, 201, 255, 0.7); }
+
+.step2 { box-shadow: 0 8px 25px rgba(192, 132, 252, 0.45); }
+.step2:hover { box-shadow: 0 12px 35px rgba(192, 132, 252, 0.7); }
+
+.step3 { box-shadow: 0 8px 25px rgba(255, 99, 132, 0.45); }
+.step3:hover { box-shadow: 0 12px 35px rgba(255, 99, 132, 0.7); }
+
+.step-card:hover {
+  transform: translateY(-12px) scale(1.03);
+}
+
+.step-icon {
+  font-size: 2.2rem;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.step-number {
+  font-size: 1.25rem;
+  font-weight: bold;
+  background: linear-gradient(90deg, #00c9ff, #c084fc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+
+.step-card h3 {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.step-card p {
+  color: #bbb;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.arrow {
+  font-size: 2rem;
+  color: #c084fc;
+  animation: bounce 1.5s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(7px); }
+}

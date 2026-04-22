@@ -1,0 +1,196 @@
+/* Flashcard.css */
+.flashcard-wrapper {
+  padding: 8px 0;
+}
+
+/* Deck mode toggle */
+.deck-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.deck-mode-btn {
+  background: var(--bg-secondary, #1a1a1a);
+  color: var(--text-muted, #888);
+  border: 1px solid var(--border-color, #2a2a2a);
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.deck-mode-btn.active {
+  background: var(--accent, #3B82F6);
+  color: #fff;
+  border-color: var(--accent, #3B82F6);
+}
+
+/* Progress bar */
+.fc-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.fc-progress-fill {
+  height: 100%;
+  background: var(--accent, #3B82F6);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.fc-counter {
+  font-size: 0.85rem;
+  color: var(--text-muted, #888);
+  margin-bottom: 20px;
+}
+
+/* Card flip container */
+.fc-card-scene {
+  width: 100%;
+  max-width: 480px;
+  height: 260px;
+  perspective: 1000px;
+  margin: 0 auto 24px;
+  cursor: pointer;
+}
+
+.fc-card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s ease;
+}
+
+.fc-card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.fc-card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.fc-card-front {
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+}
+
+.fc-card-back {
+  background: #1a1a1a;
+  border: 1px solid var(--accent, #3B82F6);
+  transform: rotateY(180deg);
+}
+
+.fc-card-front .fc-term {
+  font-size: 22px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.fc-card-back .fc-definition {
+  font-size: 15px;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.fc-flip-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted, #888);
+  margin-top: 12px;
+}
+
+/* Action buttons */
+.fc-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.fc-btn-know {
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.fc-btn-know:hover { background: #16a34a; }
+
+.fc-btn-learn {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.fc-btn-learn:hover { background: rgba(255,255,255,0.08); }
+
+/* Completion screen */
+.fc-complete {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.fc-complete h2 {
+  font-size: 1.6rem;
+  color: var(--text-main, #fff);
+  margin-bottom: 8px;
+}
+
+.fc-complete p {
+  color: var(--text-muted, #888);
+  margin-bottom: 24px;
+}
+
+.fc-complete-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.fc-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted, #888);
+  border: 1px dashed var(--border-color, #2a2a2a);
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .fc-card-scene {
+    height: 220px;
+  }
+  .fc-card-front .fc-term { font-size: 18px; }
+  .fc-card-back .fc-definition { font-size: 14px; }
+}

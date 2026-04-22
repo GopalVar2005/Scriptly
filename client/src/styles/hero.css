@@ -1,0 +1,99 @@
+/* ===========================
+   HERO SECTION
+=========================== */
+.hero {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 20px 100px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  max-width: 800px;
+  line-height: 1.15;
+  margin-bottom: 24px;
+  letter-spacing: -0.03em;
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.highlight-text {
+  color: var(--accent-color);
+}
+
+.subtitle {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  max-width: 580px;
+  line-height: 1.6;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: fadeInUp 0.8s ease-out 0.2s forwards;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  opacity: 0;
+  animation: fadeInUp 0.8s ease-out 0.4s forwards;
+}
+
+/* ===========================
+   SHARED BUTTON STYLES
+=========================== */
+.btn {
+  text-decoration: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn.primary {
+  background: var(--accent-color);
+  color: #fff;
+  border: 1px solid var(--accent-color);
+}
+.btn.primary:hover {
+  background: #0060d4;
+  border-color: #0060d4;
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+.btn.secondary:hover {
+  background: var(--bg-color-elevated);
+}
+
+/* ===========================
+   SECTION TITLES (shared)
+=========================== */
+.section-title {
+  text-align: center;
+  margin-bottom: 16px;
+}
