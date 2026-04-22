@@ -4,14 +4,58 @@ const { v4: uuidv4 } = require('uuid');
 const { fetchTranscript: fetchTranscriptPlus } = require('youtube-transcript-plus'); // Fallback: web page scraping
 const he = require('he');
 
-// youtube-transcript is ESM-only — must use dynamic import() from CommonJS
-// Lazy-loaded once on first use and cached
-let _youtubeTranscriptModule = null;
-async function getYoutubeTranscriptModule() {
-  if (!_youtubeTranscriptModule) {
-    _youtubeTranscriptModule = await import('youtube-transcript');
+// ── Direct Innertube API Implementation ────────────────────────
+// youtube-transcript npm package has a broken ESM/CJS build that crashes on Node v24.
+// Instead, we implement the same Innertube API call directly using built-in fetch().
+// This is the exact logic: POST to YouTube's internal player API with an Android
+// client identity, extract caption track URLs, fetch + parse the XML.
+
+const INNERTUBE_URL = 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false';
+const INNERTUBE_CONTEXT = { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } };
+const INNERTUBE_UA = 'com.google.android.youtube/20.10.38 (Linux; U; Android 14)';
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36';
+
+async function fetchTranscriptViaInnertube(videoId, lang = 'en') {
+  // Step 1: Get caption tracks from Innertube API
+  const playerResponse = await fetch(INNERTUBE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': INNERTUBE_UA },
+    body: JSON.stringify({ context: INNERTUBE_CONTEXT, videoId })
+  });
+
+  if (!playerResponse.ok) return null;
+
+  const playerData = await playerResponse.json();
+  const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
+  if (!Array.isArray(tracks) || tracks.length === 0) return null;
+
+  // Step 2: Find the requested language track (or use first available)
+  const track = tracks.find(t => t.languageCode === lang) || tracks[0];
+  if (!track?.baseUrl) return null;
+
+  // Step 3: Fetch the caption XML
+  const captionResponse = await fetch(track.baseUrl, {
+    headers: { 'User-Agent': BROWSER_UA }
+  });
+
+  if (!captionResponse.ok) return null;
+
+  const xml = await captionResponse.text();
+
+  // Step 4: Parse XML into segments
+  const segments = [];
+  const regex = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
+  let match;
+  while ((match = regex.exec(xml)) !== null) {
+    segments.push({
+      text: match[3],
+      offset: parseFloat(match[1]),
+      duration: parseFloat(match[2])
+    });
   }
-  return _youtubeTranscriptModule;
+
+  return segments.length > 0 ? segments : null;
 }
 
 // ── URL Utilities ──────────────────────────────────────────────
@@ -126,10 +170,9 @@ async function getYouTubeTranscript(url, videoIdParam) {
   const videoId = videoIdParam || extractVideoId(url);
   if (!videoId) return null;
 
-  // ── Method 1: youtube-transcript (Innertube/Android API) ──
+  // ── Method 1: Direct Innertube API (Android client identity) ──
   try {
-    const { YoutubeTranscript } = await getYoutubeTranscriptModule();
-    const segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' });
+    const segments = await fetchTranscriptViaInnertube(videoId, 'en');
 
     if (segments && Array.isArray(segments) && segments.length > 0) {
       console.log(`[YouTube] ✅ Method 1 (Innertube) succeeded for: ${videoId}. Items: ${segments.length}`);
