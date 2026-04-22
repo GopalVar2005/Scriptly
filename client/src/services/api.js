@@ -7,7 +7,11 @@ async function handleResponse(response) {
   const json = await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) throw new Error("Please login to continue");
-    throw new Error(json?.error || "Request failed");
+    const err = new Error(json?.error || "Request failed");
+    if (json) {
+      Object.assign(err, json);
+    }
+    throw err;
   }
   
   if (json && typeof json.success === 'boolean') {

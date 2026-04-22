@@ -274,19 +274,20 @@ export default function WorkspacePage() {
     setIsProcessing(true);
     setProcessingMsg("Checking for captions...");
 
-    const slowWarningTimeout = setTimeout(() => {
-      setProcessingMsg("No captions found — downloading audio. This may take up to a minute...");
-    }, 6000);
-
     try {
       const result = await processYouTubeUrl(youtubeUrl);
-      clearTimeout(slowWarningTimeout);
       setYoutubeSource(result.source);
       setVoiceText(result.transcript);
       setStep('transcript');
     } catch (err) {
-      clearTimeout(slowWarningTimeout);
-      setYoutubeError(err.message || 'Failed to process YouTube URL.');
+      if (err.code === "CAPTIONS_UNAVAILABLE") {
+        setYoutubeError({
+          message: err.message,
+          suggestions: err.suggestions
+        });
+      } else {
+        setYoutubeError(err.message || 'Failed to process YouTube URL.');
+      }
     } finally {
       setYoutubeLoading(false);
       setIsProcessing(false);
@@ -550,7 +551,18 @@ export default function WorkspacePage() {
                 )}
 
                 {youtubeError && (
-                  <p className="youtube-error">{youtubeError}</p>
+                  <div className="youtube-error-container" style={{ marginTop: '1rem', padding: '1rem', backgroundColor: 'rgba(230, 57, 70, 0.1)', border: '1px solid #e63946', borderRadius: '8px', color: '#e63946' }}>
+                    <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>
+                      {typeof youtubeError === 'string' ? youtubeError : youtubeError.message}
+                    </p>
+                    {typeof youtubeError === 'object' && youtubeError.suggestions && (
+                      <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.9rem' }}>
+                        {youtubeError.suggestions.map((suggestion, idx) => (
+                          <li key={idx} style={{ marginBottom: '0.25rem' }}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 )}
               </div>
             )}

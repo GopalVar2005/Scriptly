@@ -3,9 +3,7 @@ const {
   isValidYouTubeUrl,
   getVideoMetadata,
   getYouTubeTranscript,
-  downloadYouTubeAudio,
 } = require("./youtube.service");
-const { transcribeAudio } = require("../transcription/transcription.service");
 const { youtubeSchema } = require("../../validation");
 const { YOUTUBE } = require("../../config/constants");
 const logger = require("../../utils/logger");
@@ -82,22 +80,17 @@ const processVideo = async (req, res) => {
       });
     }
 
-    logger.info("[YOUTUBE_SERVICE]", `No captions found, falling back to audio download for: ${videoId}`);
-
-    const { filePath, mimetype } = await downloadYouTubeAudio(url, videoId);
-
-    let audioTranscript;
-    try {
-      audioTranscript = await transcribeAudio(filePath, mimetype);
-    } finally {
-      const fs = require('fs');
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    }
-
-    return res.json({
-      transcript: audioTranscript,
-      source: "audio",
+    // No captions available — return a helpful, structured response
+    logger.info("[YOUTUBE_SERVICE]", `No captions available for: ${videoId}`);
+    return res.status(422).json({
+      error: "This video doesn't have captions available.",
+      code: "CAPTIONS_UNAVAILABLE",
       videoTitle: metadata.title,
+      suggestions: [
+        "Look for the CC (subtitles) icon on the YouTube video",
+        "Educational channels like Khan Academy, MIT OCW usually have captions",
+        "You can also record or upload audio directly using the Record/Upload tab"
+      ]
     });
 
   } catch (err) {
