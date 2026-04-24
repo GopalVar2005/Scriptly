@@ -272,7 +272,7 @@ export default function WorkspacePage() {
     setYoutubeError(null);
     setYoutubeSource(null);
     setIsProcessing(true);
-    setProcessingMsg("📡 Fetching captions from YouTube...");
+    setProcessingMsg("Checking for captions...");
 
     try {
       const result = await processYouTubeUrl(youtubeUrl);
@@ -280,9 +280,7 @@ export default function WorkspacePage() {
       setVoiceText(result.transcript);
       setStep('transcript');
     } catch (err) {
-      if (err.message && (err.message.includes("No captions found") || err.message.includes("Could not reach YouTube"))) {
-        setYoutubeError(err.message);
-      } else if (err.code === "CAPTIONS_UNAVAILABLE") {
+      if (err.code === "CAPTIONS_UNAVAILABLE") {
         setYoutubeError({
           message: err.message,
           suggestions: err.suggestions

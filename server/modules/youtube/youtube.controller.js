@@ -45,7 +45,7 @@ const processVideo = async (req, res) => {
     if (error) {
       return res.status(400).json({ success: false, error: error.details[0].message });
     }
-    const { url, transcript } = req.body;
+    const { url } = req.body;
 
     if (!isValidYouTubeUrl(url)) {
       return res.status(400).json({ error: "Invalid YouTube URL." });
@@ -65,15 +65,6 @@ const processVideo = async (req, res) => {
     if (metadata.duration > 0 && metadata.duration > YOUTUBE.MAX_DURATION_SECONDS) {
       return res.status(400).json({
         error: `Video is too long (${metadata.durationFormatted}). Maximum supported length is ${Math.floor(YOUTUBE.MAX_DURATION_SECONDS / 60)} minutes.`,
-      });
-    }
-
-    if (transcript && transcript.length > 20) {
-      logger.info("[YOUTUBE_SERVICE]", `Using client-provided transcript for: ${videoId}`);
-      return res.json({
-        transcript: transcript,
-        source: "client_captions",
-        videoTitle: metadata.title,
       });
     }
 

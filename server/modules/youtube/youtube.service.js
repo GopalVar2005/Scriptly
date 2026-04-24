@@ -1,62 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const { fetchTranscript: fetchTranscriptPlus } = require('youtube-transcript-plus'); // Fallback: web page scraping
 const he = require('he');
 
-// ── Direct Innertube API Implementation ────────────────────────
-// youtube-transcript npm package has a broken ESM/CJS build that crashes on Node v24.
-// Instead, we implement the same Innertube API call directly using built-in fetch().
-// This is the exact logic: POST to YouTube's internal player API with an Android
-// client identity, extract caption track URLs, fetch + parse the XML.
-
-const INNERTUBE_URL = 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false';
-const INNERTUBE_CONTEXT = { client: { clientName: 'ANDROID', clientVersion: '20.10.38' } };
-const INNERTUBE_UA = 'com.google.android.youtube/20.10.38 (Linux; U; Android 14)';
-const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36';
-
-async function fetchTranscriptViaInnertube(videoId, lang = 'en') {
-  // Step 1: Get caption tracks from Innertube API
-  const playerResponse = await fetch(INNERTUBE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': INNERTUBE_UA },
-    body: JSON.stringify({ context: INNERTUBE_CONTEXT, videoId })
-  });
-
-  if (!playerResponse.ok) return null;
-
-  const playerData = await playerResponse.json();
-  const tracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-  if (!Array.isArray(tracks) || tracks.length === 0) return null;
-
-  // Step 2: Find the requested language track (or use first available)
-  const track = tracks.find(t => t.languageCode === lang) || tracks[0];
-  if (!track?.baseUrl) return null;
-
-  // Step 3: Fetch the caption XML
-  const captionResponse = await fetch(track.baseUrl, {
-    headers: { 'User-Agent': BROWSER_UA }
-  });
-
-  if (!captionResponse.ok) return null;
-
-  const xml = await captionResponse.text();
-
-  // Step 4: Parse XML into segments
-  const segments = [];
-  const regex = /<text start="([^"]*)" dur="([^"]*)">([^<]*)<\/text>/g;
-  let match;
-  while ((match = regex.exec(xml)) !== null) {
-    segments.push({
-      text: match[3],
-      offset: parseFloat(match[1]),
-      duration: parseFloat(match[2])
-    });
-  }
-
-  return segments.length > 0 ? segments : null;
-}
+// Configure API Keys from environment
+const SUPADATA_API_KEY = process.env.SUPADATA_API_KEY;
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
 // ── URL Utilities ──────────────────────────────────────────────
 
@@ -159,65 +107,107 @@ function cleanCaptionText(rawText) {
     .trim();
 }
 
-// ── Captions / Transcript (Dual-Library Fallback) ──────────────
-//
-// Method 1 (PRIMARY):   youtube-transcript → Innertube API with Android client identity
-//                       Much better success rate from cloud/datacenter IPs
-// Method 2 (FALLBACK):  youtube-transcript-plus → web page scraping
-//                       May work if Innertube is temporarily down
+// ── Transcript Fetching APIs ───────────────────────────────────
+
+// Method 1 (PRIMARY): Supadata
+async function fetchTranscriptSupadata(videoId) {
+  if (!SUPADATA_API_KEY) {
+    console.log("[YouTube] SUPADATA_API_KEY not set. Skipping primary API.");
+    return null;
+  }
+  
+  try {
+    // Official Supadata REST endpoint
+    const response = await fetch(`https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': SUPADATA_API_KEY
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Supadata API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Parse Supadata response
+    if (data && data.content) {
+      return data.content;
+    } else if (Array.isArray(data)) {
+      return data.map(item => item.text).join(' ');
+    } else if (data && data.transcript) {
+      return data.transcript;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`[YouTube API] Supadata fetch failed for ${videoId}:`, error.message);
+    return null;
+  }
+}
+
+// Method 2 (FALLBACK): RapidAPI
+async function fetchTranscriptRapidAPI(videoId) {
+  if (!RAPIDAPI_KEY) {
+    console.log("[YouTube] RAPIDAPI_KEY not set. Skipping backup API.");
+    return null;
+  }
+  
+  try {
+    // Common RapidAPI endpoint (e.g., 'youtube-transcripts')
+    const response = await fetch(`https://youtube-transcripts.p.rapidapi.com/youtube/transcript?videoId=${videoId}&chunked=false`, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'youtube-transcripts.p.rapidapi.com'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`RapidAPI error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (data && data.content) {
+      return data.content;
+    } else if (Array.isArray(data)) {
+      return data.map(t => t.text).join(' ');
+    }
+    return null;
+  } catch (error) {
+    console.error(`[YouTube API] RapidAPI fetch failed for ${videoId}:`, error.message);
+    return null;
+  }
+}
 
 async function getYouTubeTranscript(url, videoIdParam) {
   const videoId = videoIdParam || extractVideoId(url);
   if (!videoId) return null;
 
-  // ── Method 1: Direct Innertube API (Android client identity) ──
-  try {
-    const segments = await fetchTranscriptViaInnertube(videoId, 'en');
+  // 1. Primary: Supadata
+  console.log(`[YouTube] Attempting primary API (Supadata) for: ${videoId}`);
+  let rawTranscript = await fetchTranscriptSupadata(videoId);
 
-    if (segments && Array.isArray(segments) && segments.length > 0) {
-      console.log(`[YouTube] ✅ Method 1 (Innertube) succeeded for: ${videoId}. Items: ${segments.length}`);
-      const rawText = segments.map(s => he.decode(s.text)).join(' ');
-      return cleanCaptionText(rawText);
-    }
-  } catch (err) {
-    console.log(`[YouTube] Method 1 (Innertube) failed for ${videoId}: ${err.message}. Trying fallback...`);
+  // 2. Backup: RapidAPI
+  if (!rawTranscript) {
+    console.log(`[YouTube] Primary failed. Attempting backup API (RapidAPI) for: ${videoId}`);
+    rawTranscript = await fetchTranscriptRapidAPI(videoId);
   }
 
-  // ── Method 2: youtube-transcript-plus (web page scraping) ──
-  try {
-    const segments = await fetchTranscriptPlus(videoId, { lang: 'en' });
-
-    if (segments && Array.isArray(segments) && segments.length > 0) {
-      console.log(`[YouTube] ✅ Method 2 (web scrape) succeeded for: ${videoId}. Items: ${segments.length}`);
-      const rawText = segments.map(s => he.decode(s.text)).join(' ');
-      return cleanCaptionText(rawText);
-    }
-  } catch (err) {
-    console.log(`[YouTube] Method 2 (web scrape) also failed for ${videoId}: ${err.message}.`);
+  if (rawTranscript) {
+    console.log(`[YouTube] ✅ Successfully fetched transcript for: ${videoId}`);
+    return cleanCaptionText(he.decode(rawTranscript));
   }
 
   // Both methods failed
-  console.log(`[YouTube] ❌ All caption methods failed for: ${videoId}`);
+  console.log(`[YouTube] ❌ All APIs failed for: ${videoId}`);
   return null;
-}
-
-// ── Audio Download (DISABLED IN PRODUCTION) ────────────────────
-// Kept for backward compatibility and potential future use with
-// a paid proxy or different hosting environment.
-// In production (Render), yt-dlp is blocked by YouTube anti-bot.
-
-async function downloadYouTubeAudio(url, videoIdParam) {
-  throw new Error(
-    "Audio download is not available in production. " +
-    "YouTube blocks server-side downloads. " +
-    "Please use a video with captions enabled."
-  );
 }
 
 module.exports = {
   extractVideoId,
   isValidYouTubeUrl,
   getVideoMetadata,
-  getYouTubeTranscript,
-  downloadYouTubeAudio
+  getYouTubeTranscript
 };
