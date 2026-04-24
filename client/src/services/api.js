@@ -1,6 +1,7 @@
 // client/src/services/api.js
 // In production, VITE_API_URL points to the Render backend (e.g. https://scriptly-backend.onrender.com/api)
 // In development, falls back to '/api' which is proxied by Vite to localhost:5001
+import { fetchCaptionsClientSide, extractVideoId } from '../utils/youtubeCaptions';
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 async function handleResponse(response) {
@@ -139,11 +140,18 @@ export async function generateQuiz(noteId) {
 }
 
 export async function processYouTubeUrl(url) {
+  const videoId = extractVideoId(url);
+  if (!videoId) {
+    throw new Error("Invalid YouTube URL. Please check and try again.");
+  }
+  
+  const transcript = await fetchCaptionsClientSide(videoId);
+
   const response = await fetch(`${BASE_URL}/youtube/process`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ url })
+    body: JSON.stringify({ url, transcript })
   });
   return handleResponse(response);
 }
