@@ -117,8 +117,8 @@ async function fetchTranscriptSupadata(videoId) {
   }
   
   try {
-    // Official Supadata REST endpoint
-    const response = await fetch(`https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`, {
+    // Official Supadata REST endpoint (requesting English explicitly)
+    const response = await fetch(`https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}&lang=en`, {
       method: 'GET',
       headers: {
         'x-api-key': SUPADATA_API_KEY
@@ -155,8 +155,8 @@ async function fetchTranscriptRapidAPI(videoId) {
   }
   
   try {
-    // Common RapidAPI endpoint (e.g., 'youtube-transcripts')
-    const response = await fetch(`https://youtube-transcripts.p.rapidapi.com/youtube/transcript?videoId=${videoId}&chunked=false`, {
+    // Common RapidAPI endpoint (requesting English explicitly)
+    const response = await fetch(`https://youtube-transcripts.p.rapidapi.com/youtube/transcript?videoId=${videoId}&chunked=false&lang=en`, {
       method: 'GET',
       headers: {
         'X-RapidAPI-Key': RAPIDAPI_KEY,
@@ -197,7 +197,23 @@ async function getYouTubeTranscript(url, videoIdParam) {
 
   if (rawTranscript) {
     console.log(`[YouTube] ✅ Successfully fetched transcript for: ${videoId}`);
-    return cleanCaptionText(he.decode(rawTranscript));
+    
+    // Safety check: Ensure rawTranscript is a string before decoding
+    let finalTranscript = '';
+    if (typeof rawTranscript === 'string') {
+        finalTranscript = rawTranscript;
+    } else if (Array.isArray(rawTranscript)) {
+        // If it's an array of objects (like {text: 'hello'})
+        finalTranscript = rawTranscript.map(item => typeof item === 'object' ? (item.text || '') : item).join(' ');
+    } else if (typeof rawTranscript === 'object') {
+        finalTranscript = rawTranscript.content || rawTranscript.transcript || rawTranscript.text || JSON.stringify(rawTranscript);
+    } else {
+        finalTranscript = String(rawTranscript);
+    }
+    
+    if (typeof finalTranscript !== 'string') finalTranscript = String(finalTranscript);
+
+    return cleanCaptionText(he.decode(finalTranscript));
   }
 
   // Both methods failed
