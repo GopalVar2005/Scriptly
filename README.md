@@ -15,10 +15,14 @@ Scriptly is an AI-powered study acceleration platform that transforms raw audio,
 
 ## Screenshots
 
-<!-- Add screenshots here -->
-<!-- ![Workspace](/docs/workspace.png) -->
-<!-- ![Study Guide](/docs/study-guide.png) -->
-<!-- ![Revision Mode](/docs/revision.png) -->
+### Homepage
+![Homepage](docs/homepage.png)
+
+### Workspace — Multi-modal Input
+![Workspace](docs/workspace.png)
+
+### AI-Generated Study Guide
+![Study Guide](docs/study-guide.png)
 
 ## Architecture
 
@@ -81,8 +85,8 @@ scriptly/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/scriptly.git
-   cd scriptly
+   git clone https://github.com/GopalVar2005/Scriptly.git
+   cd Scriptly
    ```
 
 2. **Install dependencies:**
