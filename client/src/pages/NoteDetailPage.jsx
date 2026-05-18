@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Lightbulb, Target, ArrowLeft, FileDown, Trash2, BookOpen } from 'lucide-react';
 import { getNoteById, deleteNote, updateNote } from '../services/api';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import ConceptPanel from '../components/ConceptPanel';
 import Flashcard from '../components/Flashcard';
 import Quiz from '../components/Quiz';
+import RevisionMode from '../components/RevisionMode';
+import { exportNotePdf } from '../utils/exportPdf';
 import '../styles/workspace.css';
 import '../styles/study-tabs.css';
+import '../styles/note-detail.css';
 
 export default function NoteDetailPage() {
   const { id } = useParams();
@@ -41,7 +45,7 @@ export default function NoteDetailPage() {
         setEditSummary(data.summary || '');
         setEditKeywords(data.keywords ? data.keywords.join(', ') : '');
       } catch (err) {
-        setError(err.message);
+        setError(err);
       } finally {
         setIsLoading(false);
       }
@@ -49,7 +53,7 @@ export default function NoteDetailPage() {
     fetchNote();
   }, [id]);
 
-  const isAuthError = error && (error.toLowerCase().includes('login') || error.toLowerCase().includes('unauthorized') || error.toLowerCase().includes('authentication'));
+  const isAuthError = error?.status === 401 || error?.status === 403;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -119,22 +123,14 @@ export default function NoteDetailPage() {
     }
   };
 
-  const handleExportNote = () => {
+  const handleExportNote = async () => {
     if (!note) return;
-    const content = `Title: ${note.title}
-
-Summary:
-${note.summary || note.quick_recap || ''}
-
-Key Points:
-${note.keywords ? note.keywords.join(', ') : ''}`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${note.title || 'Note'}_${new Date(note.createdAt).toLocaleDateString().replace(/\//g, '-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      await exportNotePdf(note);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -163,19 +159,19 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
   };
 
   if (isLoading) return (
-    <div className="workspace-page">
+    <div className="nd-page">
       <Navbar />
-      <div className="workspace-container" style={{ paddingTop: '40px', color: 'var(--text-muted)' }}>Loading...</div>
+      <div className="nd-container" style={{ color: 'var(--text-muted)' }}>Loading...</div>
       <Footer />
     </div>
   );
 
   if (error) return (
-    <div className="workspace-page">
+    <div className="nd-page">
       <Navbar />
-      <div className="workspace-container" style={{ paddingTop: '40px' }}>
+      <div className="nd-container">
         {isAuthError ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '16px' }}>Please login to continue</p>
             <button
               onClick={() => navigate('/login', { state: { from: `/notes/${id}` } })}
@@ -192,7 +188,7 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
             >Sign in</button>
           </div>
         ) : (
-          <p style={{ color: '#e63946' }}>Error: {error}</p>
+          <p className="nd-error-msg">Error: {error?.message || String(error)}</p>
         )}
       </div>
       <Footer />
@@ -200,31 +196,18 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
   );
 
   if (!note) return (
-    <div className="workspace-page">
+    <div className="nd-page">
       <Navbar />
-      <div className="workspace-container" style={{ paddingTop: '40px', color: 'var(--text-muted)' }}>Note not found.</div>
+      <div className="nd-container" style={{ color: 'var(--text-muted)' }}>Note not found.</div>
       <Footer />
     </div>
   );
 
-  const inputStyle = {
-    width: '100%',
-    background: 'var(--bg-color-elevated)',
-    border: '1px solid var(--border-color)',
-    color: 'var(--text-main)',
-    padding: '12px',
-    borderRadius: '8px',
-    fontFamily: 'inherit',
-    marginBottom: '8px',
-    fontSize: '0.95rem'
-  };
-
-  // Prepare cards for flashcards
   const termCards = note.key_terms ? Object.entries(note.key_terms).map(([front, back]) => ({ front, back })) : [];
   const conceptCards = note.key_concepts ? note.key_concepts.map(kc => ({ front: kc.concept, back: kc.explanation + " — " + kc.why_it_matters })) : [];
 
   return (
-    <div className="workspace-page">
+    <div className="nd-page">
       <style>{`
         .summary-wrapper {
           transition: margin-right 0.3s ease, padding-right 0.3s ease;
@@ -237,14 +220,11 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
       `}</style>
       <Navbar />
 
-      <div className={`workspace-container summary-wrapper ${selectedTerm && activeTab === "summary" ? 'panel-open' : ''}`}>
+      <div className={`nd-container summary-wrapper ${selectedTerm && activeTab === "summary" ? 'panel-open' : ''}`}>
         {/* Top actions */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', paddingTop: '20px' }}>
-          <Link to="/notes" style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'color 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-          >
-            ← Back to Notes
+        <div className="nd-top-actions">
+          <Link to="/notes" className="nd-back-link">
+            <ArrowLeft size={14} /> Back to Notes
           </Link>
         </div>
 
@@ -253,16 +233,16 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
           <input 
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            style={{ ...inputStyle, fontSize: '2rem', fontWeight: '700', padding: '16px' }}
+            className="nd-input title-input"
             placeholder="Note Title"
           />
         ) : (
-          <h1 style={{ fontSize: '2.5rem', fontWeight: '700', letterSpacing: '-0.02em', lineHeight: '1.2', marginBottom: '8px' }}>
+          <h1 className="nd-title">
             {note.title || 'Untitled Note'}
           </h1>
         )}
 
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '40px' }}>
+        <p className="nd-date">
           {new Date(note.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
 
@@ -279,7 +259,11 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
           <button 
             className={activeTab === "quiz" ? "tab active" : "tab"}
             onClick={() => setActiveTab("quiz")}
-          >Quiz 🎯</button>
+          >Quiz <Target size={14} style={{ marginLeft: '4px' }} /></button>
+          <button 
+            className={activeTab === "revision" ? "tab active" : "tab"}
+            onClick={() => setActiveTab("revision")}
+          >Revision <BookOpen size={14} style={{ marginLeft: '4px' }} /></button>
         </div>
 
         <div style={{ paddingBottom: '32px' }}>
@@ -287,9 +271,9 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
           {activeTab === "summary" && (
             <div ref={summaryRef} onMouseUp={handleTextSelection} onTouchEnd={handleTextSelection}>
               
-              <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--accent, #3B82F6)', padding: '12px 16px', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '1.5rem' }}>💡</span>
-                <p style={{ color: 'var(--text-main)', margin: 0, fontSize: '1rem' }}>
+              <div className="nd-pro-tip">
+                <Lightbulb size={22} className="nd-pro-tip-icon" />
+                <p>
                   <strong>Pro tip:</strong> Highlight any text or tap on terms below to instantly explore them!
                 </p>
               </div>
@@ -314,7 +298,8 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
                       <textarea 
                         value={editSummary}
                         onChange={(e) => setEditSummary(e.target.value)}
-                        style={{ ...inputStyle, minHeight: '150px', resize: 'vertical' }}
+                        className="nd-input"
+                        style={{ minHeight: '150px', resize: 'vertical' }}
                         placeholder="Summary..."
                       />
                     ) : (
@@ -329,20 +314,15 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
               {note.key_concepts && note.key_concepts.length > 0 && (
                 <div className="content-card" style={{ marginBottom: '1.5rem' }}>
                   <div className="section-label">KEY CONCEPTS</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="nd-concept-list">
                     {note.key_concepts.map((kc, i) => (
-                      <details key={i} style={{ 
-                        padding: '1rem', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-primary)'
-                      }}>
-                        <summary style={{ fontWeight: 'bold', cursor: 'pointer', color: 'var(--text-main)', outline: 'none' }}>
+                      <details key={i} className="nd-concept-details">
+                        <summary className="nd-concept-summary">
                             {kc.concept}
                         </summary>
-                        <div style={{ marginTop: '1rem', paddingLeft: '1rem', borderLeft: '2px solid var(--accent)' }}>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}><strong>Explanation:</strong> {kc.explanation}</p>
-                            <p style={{ color: 'var(--text-secondary)' }}><strong>Why it matters:</strong> {kc.why_it_matters}</p>
+                        <div className="nd-concept-body">
+                            <p><strong>Explanation:</strong> {kc.explanation}</p>
+                            <p><strong>Why it matters:</strong> {kc.why_it_matters}</p>
                         </div>
                       </details>
                     ))}
@@ -353,9 +333,9 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
               {note.important_to_remember && note.important_to_remember.length > 0 && (
                 <div className="content-card" style={{ marginBottom: '1.5rem' }}>
                   <div className="section-label">IMPORTANT TO REMEMBER</div>
-                  <ul style={{ paddingLeft: '1.5rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  <ul className="nd-bullet-list">
                       {note.important_to_remember.map((item, i) => (
-                        <li key={i} style={{ marginBottom: '0.5rem' }}>{item}</li>
+                        <li key={i}>{item}</li>
                       ))}
                   </ul>
                 </div>
@@ -364,15 +344,15 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
               {note.key_terms && Object.keys(note.key_terms).length > 0 && (
                 <div className="content-card" style={{ marginBottom: '1.5rem' }}>
                   <div className="section-label">GLOSSARY</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="nd-glossary-list">
                       {Object.entries(note.key_terms).map(([term, def], i) => (
                         <div key={i}>
                           <strong 
-                            style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
+                            className="nd-glossary-term"
                             onClick={() => setSelectedTerm(term)}
                           >
                             {term}
-                          </strong>: <span style={{ color: 'var(--text-secondary)' }}>{def}</span>
+                          </strong>: <span className="nd-glossary-def">{def}</span>
                         </div>
                       ))}
                   </div>
@@ -382,9 +362,9 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
               {note.memory_anchors && note.memory_anchors.length > 0 && (
                 <div className="content-card" style={{ marginBottom: '1.5rem' }}>
                   <div className="section-label">MEMORY ANCHORS</div>
-                  <ul style={{ paddingLeft: '1.5rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  <ul className="nd-bullet-list">
                       {note.memory_anchors.map((item, i) => (
-                        <li key={i} style={{ marginBottom: '0.5rem' }}>{item}</li>
+                        <li key={i}>{item}</li>
                       ))}
                   </ul>
                 </div>
@@ -398,7 +378,7 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
                       <input 
                         value={editKeywords}
                         onChange={(e) => setEditKeywords(e.target.value)}
-                        style={inputStyle}
+                        className="nd-input"
                         placeholder="Comma separated keywords..."
                       />
                     ) : (
@@ -420,7 +400,12 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
 
           {/* TAB CONTENT - FLASHCARDS */}
           {activeTab === "flashcards" && (
-            <Flashcard cards={[]} termCards={termCards} conceptCards={conceptCards} />
+            <Flashcard 
+              noteId={note._id}
+              termCards={termCards} 
+              conceptCards={conceptCards} 
+              initialProgress={note.flashcard_progress}
+            />
           )}
 
           {/* TAB CONTENT - QUIZ */}
@@ -431,16 +416,25 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
               cachedQuizData={note.quiz_data} 
             />
           )}
+
+          {/* TAB CONTENT - REVISION */}
+          {activeTab === "revision" && (
+            <RevisionMode 
+              note={note}
+              termCards={termCards}
+              conceptCards={conceptCards}
+            />
+          )}
         </div>
 
         {/* Actions - Bottom */}
         {!isEditing && activeTab === "summary" && (
           <div className="action-row">
             <button className="btn-ghost-solid" onClick={handleExportNote}>
-              Export as TXT
+              <FileDown size={15} style={{ marginRight: '4px' }} /> Export PDF
             </button>
             <button className="btn-ghost-solid" onClick={handleDelete} style={{ color: '#e63946', borderColor: 'rgba(230,57,70,0.3)' }}>
-              Delete note
+              <Trash2 size={15} style={{ marginRight: '4px' }} /> Delete note
             </button>
           </div>
         )}
@@ -448,28 +442,15 @@ ${note.keywords ? note.keywords.join(', ') : ''}`;
         {/* FLOATING TOOLTIP */}
         {tooltipState.visible && (
           <button 
-            style={{
-              position: 'absolute',
-              left: tooltipState.x,
-              top: tooltipState.y,
-              transform: 'translateX(-50%)',
-              backgroundColor: 'var(--accent, #3B82F6)',
-              color: 'white',
-              borderRadius: '999px',
-              fontSize: '13px',
-              padding: '6px 14px',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-              cursor: 'pointer',
-              zIndex: 1050
-            }}
+            className="nd-tooltip"
+            style={{ left: tooltipState.x, top: tooltipState.y }}
             onClick={() => {
               setSelectedTerm(pendingTerm);
               setTooltipState({ visible: false, x: 0, y: 0 });
             }}
             onMouseDown={(e) => e.preventDefault()} // Prevent clearing selection
           >
-            💡 Explain this
+            <Lightbulb size={14} style={{ marginRight: '4px' }} /> Explain this
           </button>
         )}
 

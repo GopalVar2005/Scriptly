@@ -35,7 +35,15 @@ const noteSchema = new mongoose.Schema({
     key_terms: { type: Object, default: {} },
     memory_anchors: { type: [String], default: [] },
     // Quiz data — cached after first generation
-    quiz_data: { type: Array, default: [] }
+    quiz_data: { type: Array, default: [] },
+    // Flashcard progress
+    flashcard_progress: { 
+        type: Object, 
+        default: {
+            terms: { known: [], lastReviewedAt: null },
+            concepts: { known: [], lastReviewedAt: null }
+        }
+    }
 }, { timestamps: true });
 
 // Index for efficient per-user note queries (sorted by newest first)

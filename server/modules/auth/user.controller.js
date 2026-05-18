@@ -17,14 +17,31 @@ const registerUser = (req, res) => {
     User.register(user, password, (err, registeredUser) => {
         if (err) {
             logger.error('[AUTH]', 'Register error:', err);
-            return res.status(400).json({ success: false, error: err.message || "Registration failed" });
+            let message = err.message || "Registration failed";
+            if (err.name === 'UserExistsError') {
+                message = "An account with this email already exists.";
+            }
+            return res.status(400).json({ success: false, error: message });
         }
 
-        logger.info('[AUTH]', `User registered successfully: ${user.email}`);
-        return res.status(201).json({
-            success: true,
-            message: 'User registered successfully',
-            user: { id: registeredUser._id, username: registeredUser.username, email: registeredUser.email }
+        // Auto-login: establish session immediately after registration
+        req.login(registeredUser, (loginErr) => {
+            if (loginErr) {
+                logger.warn('[AUTH]', `User registered but auto-login failed: ${registeredUser.email}`);
+                // Still return success — user can log in manually
+                return res.status(201).json({
+                    success: true,
+                    message: 'User registered successfully',
+                    user: { id: registeredUser._id, username: registeredUser.username, email: registeredUser.email }
+                });
+            }
+
+            logger.info('[AUTH]', `User registered and auto-logged in: ${registeredUser.email}`);
+            return res.status(201).json({
+                success: true,
+                message: 'Registration successful',
+                user: { id: registeredUser._id, username: registeredUser.username, email: registeredUser.email }
+            });
         });
     });
 };

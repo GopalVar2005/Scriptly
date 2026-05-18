@@ -62,8 +62,10 @@ const generateQuiz = async (req, res) => {
             return res.status(400).json({ error: "Failed to generate quiz from this material." });
         }
 
-        note.quiz_data = quiz_data;
-        await note.save();
+        await Note.findByIdAndUpdate(
+            req.params.noteId, 
+            { $set: { quiz_data: quiz_data } }
+        );
 
         logger.info("[AI_SERVICE]", `Generated and cached quiz for note: ${req.params.noteId}`);
         res.json({ quiz_data });

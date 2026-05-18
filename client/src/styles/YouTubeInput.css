@@ -39,6 +39,19 @@
   margin: 0;
 }
 
+.youtube-guidelines {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+  font-style: italic;
+}
+
+.youtube-url-hint {
+  font-size: 13px;
+  color: #eab308;
+  margin: 0.5rem 0 0 0;
+}
+
 .youtube-url-row {
   display: flex;
   gap: 10px;

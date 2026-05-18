@@ -1,101 +1,128 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Mic, Search, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { getNotes } from '../services/api';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import '../styles/global.css';
+import '../styles/notes-page.css';
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'updated', label: 'Recently updated' }
+];
 
 export default function NotesPage() {
   const [notes, setNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
 
-  const isAuthError = error && (error.toLowerCase().includes('login') || error.toLowerCase().includes('unauthorized') || error.toLowerCase().includes('authentication'));
+  const isAuthError = error?.status === 401 || error?.status === 403;
+
+  // Debounce search input — 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch notes from backend with pagination
+  const fetchNotes = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await getNotes({ page, limit: 12, sort: sortBy });
+      setNotes(result.data || []);
+      setPagination(result.pagination || null);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, sortBy]);
 
   useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        const data = await getNotes();
-        setNotes(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchNotes();
-  }, []);
+  }, [fetchNotes]);
 
-  const filteredNotes = notes.filter(note => 
-    (note.title && note.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (note.summary && note.summary.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (note.transcription && note.transcription.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (note.keywords && note.keywords.some(kw => kw.toLowerCase().includes(searchQuery.toLowerCase())))
-  );
+  // Reset to page 1 when sort changes
+  useEffect(() => {
+    setPage(1);
+  }, [sortBy]);
+
+  // Client-side filter within loaded page (title + keywords only)
+  const filteredNotes = debouncedSearch
+    ? notes.filter(note =>
+        (note.title && note.title.toLowerCase().includes(debouncedSearch.toLowerCase())) ||
+        (note.keywords && note.keywords.some(kw => kw.toLowerCase().includes(debouncedSearch.toLowerCase())))
+      )
+    : notes;
+
+  const totalPages = pagination?.totalPages || 1;
+  const totalNotes = pagination?.total || 0;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-color)' }}>
+    <div className="notes-page">
       <Navbar />
-      <div style={{ flex: 1, padding: '20px 20px 60px', maxWidth: '900px', width: '100%', margin: '0 auto' }}>
+      <div className="notes-container">
         
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+        <div className="notes-header">
           <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: '600', margin: '0 0 4px 0' }}>Notes</h1>
-            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>
-              {isLoading ? '...' : `${notes.length} recording${notes.length !== 1 ? 's' : ''} saved`}
+            <h1>Notes</h1>
+            <p>
+              {isLoading ? '...' : `${totalNotes} note${totalNotes !== 1 ? 's' : ''} saved`}
             </p>
           </div>
-          <Link to="/workspace" style={{
-            background: 'var(--accent-color)',
-            color: '#fff',
-            padding: '10px 18px',
-            borderRadius: '6px',
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            textDecoration: 'none',
-            transition: 'background 0.2s ease'
-          }}>
-            🎙 New recording
+          <Link to="/workspace" className="new-recording-btn">
+            <Mic size={15} /> New recording
           </Link>
         </div>
 
-        {/* Search */}
-        <div style={{ marginBottom: '24px' }}>
-          <input 
-            type="text" 
-            placeholder="Search notes, tags, or content..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-color-elevated)',
-              color: 'var(--text-main)',
-              fontSize: '0.95rem',
-              outline: 'none',
-              fontFamily: 'inherit',
-              transition: 'border-color 0.2s ease'
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.2)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
-          />
+        {/* Search + Sort Row */}
+        <div className="notes-search-row">
+          {/* Search */}
+          <div className="notes-search-wrapper">
+            <Search size={16} className="notes-search-icon" />
+            <input 
+              type="text" 
+              placeholder="Search by title or keywords..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="notes-search-input"
+            />
+          </div>
+
+          {/* Sort Dropdown */}
+          <div className="notes-sort-wrapper">
+            <ArrowUpDown size={14} className="notes-sort-icon" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="notes-sort-select"
+            >
+              {SORT_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Content */}
         {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+          <div className="notes-state-msg">
             Loading notes...
           </div>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div className="notes-state-msg">
             {isAuthError ? (
               <>
                 <p style={{ fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '16px' }}>Please login to continue</p>
@@ -114,77 +141,76 @@ export default function NotesPage() {
                 >Sign in</button>
               </>
             ) : (
-              <p style={{ color: '#e63946' }}>Error: {error}</p>
+              <p style={{ color: '#e63946' }}>Error: {error?.message || String(error)}</p>
             )}
           </div>
         ) : filteredNotes.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', border: '1px dashed var(--border-color)', borderRadius: '8px' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-              {notes.length === 0 ? "No recordings yet. Start by creating one!" : "No notes match your search."}
+          <div className="notes-empty-state">
+            <p>
+              {totalNotes === 0 ? "No recordings yet. Start by creating one!" : debouncedSearch ? "No notes match your search." : "No notes on this page."}
             </p>
-            {notes.length === 0 && (
-              <Link to="/workspace" style={{ color: 'var(--accent-color)', fontSize: '0.9rem', marginTop: '12px', display: 'inline-block' }}>
+            {totalNotes === 0 && (
+              <Link to="/workspace">
                 Go to Workspace →
               </Link>
             )}
           </div>
         ) : (
-          <div style={{ borderTop: '1px solid var(--border-color)' }}>
+          <div className="notes-list">
             {filteredNotes.map((note) => (
-              <Link to={`/notes/${note._id}`} key={note._id} style={{ 
-                textDecoration: 'none',
-                color: 'inherit',
-                borderBottom: '1px solid var(--border-color)',
-                padding: '20px 0',
-                display: 'block',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >
+              <Link to={`/notes/${note._id}`} key={note._id} className="notes-item">
                 {/* Row 1: Title + Tags + Date */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-                    <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--accent-color)', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div className="notes-item-header">
+                  <div className="notes-item-title-group">
+                    <h3 className="notes-item-title">
                       {note.title || 'Untitled Note'}
                     </h3>
                     
                     {note.keywords && note.keywords.length > 0 && (
-                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                      <div className="notes-item-tags">
                         {note.keywords.slice(0, 2).map((kw, i) => (
-                          <span key={i} style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid var(--border-color)',
-                            color: 'var(--text-muted)',
-                            fontSize: '0.7rem',
-                            padding: '2px 8px',
-                            borderRadius: '4px'
-                          }}>{kw}</span>
+                          <span key={i} className="notes-item-tag">{kw}</span>
                         ))}
                       </div>
                     )}
                   </div>
                   
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '16px', flexShrink: 0 }}>
+                  <div className="notes-item-date">
                     {new Date(note.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   </div>
                 </div>
                 
-                {/* Row 2: Summary preview */}
-                <p style={{ 
-                  color: 'var(--text-muted)', 
-                  fontSize: '0.85rem',
-                  lineHeight: '1.4',
-                  display: '-webkit-box', 
-                  WebkitLineClamp: 1, 
-                  WebkitBoxOrient: 'vertical', 
-                  overflow: 'hidden',
-                  margin: '0'
-                }}>
-                  {note.summary || note.transcription}
+                {/* Row 2: Quick recap or subject as preview */}
+                <p className="notes-item-preview">
+                  {note.quick_recap || note.subject_detected || 'No preview available'}
                 </p>
               </Link>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {!isLoading && !error && totalPages > 1 && (
+          <div className="notes-pagination">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="notes-pagination-btn"
+            >
+              <ChevronLeft size={14} /> Previous
+            </button>
+
+            <span className="notes-pagination-text">
+              Page {page} of {totalPages}
+            </span>
+
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="notes-pagination-btn"
+            >
+              Next <ChevronRight size={14} />
+            </button>
           </div>
         )}
       </div>

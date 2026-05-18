@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChevronDown } from 'lucide-react';
 
 export default function StepCard({ icon, number, title, description, stepClass }) {
   return (
@@ -9,7 +10,7 @@ export default function StepCard({ icon, number, title, description, stepClass }
         <h3>{title}</h3>
         <p>{description}</p>
       </div>
-      {number !== '3' && <div className="arrow">⬇</div>}
+      {number !== '3' && <div className="arrow"><ChevronDown size={28} /></div>}
     </>
   );
 }

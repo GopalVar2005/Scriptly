@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { BookOpenText } from 'lucide-react';
 import '../styles/footer.css';
 
 export default function Footer() {
@@ -7,7 +8,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="footer-inner">
         <Link to="/" className="footer-brand">
-          <span className="footer-icon">🎙</span> Scriptly
+          <BookOpenText size={18} className="footer-icon" /> Scriptly
         </Link>
         <p className="footer-copyright">© {new Date().getFullYear()} Scriptly. All rights reserved.</p>
       </div>

@@ -3,17 +3,20 @@
 // In development, falls back to '/api' which is proxied by Vite to localhost:5001
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-async function handleResponse(response) {
+async function handleResponse(response, { raw = false } = {}) {
   const json = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) throw new Error("Please login to continue");
-    const err = new Error(json?.error || "Request failed");
-    if (json) {
-      Object.assign(err, json);
+    if (response.status === 401 || response.status === 403) {
+      const err = new Error("Please login to continue");
+      err.status = response.status;
+      throw err;
     }
+    const err = new Error(json?.error || "Request failed");
+    err.status = response.status;
+    if (json) Object.assign(err, json);
     throw err;
   }
-  
+  if (raw) return json;
   if (json && typeof json.success === 'boolean') {
       if (!json.success) throw new Error(json.error || "Request failed");
       if (json.data !== undefined) return json.data;
@@ -84,12 +87,14 @@ export async function saveNote(data) {
   return handleResponse(response);
 }
 
-export async function getNotes() {
-  const response = await fetch(`${BASE_URL}/notes`, {
+export async function getNotes({ page = 1, limit = 12, sort = 'newest' } = {}) {
+  const params = new URLSearchParams({ page, limit, sort });
+  const response = await fetch(`${BASE_URL}/notes?${params}`, {
     method: "GET",
     credentials: "include"
   });
-  return handleResponse(response);
+  const json = await handleResponse(response, { raw: true });
+  return { data: json.data, pagination: json.pagination };
 }
 
 export async function getNoteById(id) {

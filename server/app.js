@@ -1,4 +1,4 @@
-// app.js
+// app.js — Express app configuration (separated from server start for testability)
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
@@ -24,6 +24,7 @@ const { isLoggedIn } = require('./middleware');
 
 // Utils
 const { cleanupOldUploads } = require('./utils/fileCleanup');
+const logger = require('./utils/logger');
 
 dotenv.config();  // Stores values in process.env
 
@@ -44,8 +45,8 @@ if (process.env.NODE_ENV === 'production') {
 
 // --- MongoDB Connection ---
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("DB connected successfully"))
-  .catch(err => console.error("DB error:", err));
+  .then(() => logger.success('[DB]', 'Connected successfully'))
+  .catch(err => logger.error('[DB]', 'Connection failed', err.message));
 
 // --- Middleware ---
 app.use(express.json());
@@ -62,7 +63,7 @@ app.use(cors({
       callback(null, true);
     } else {
       // Return false instead of throwing — browser sees missing CORS headers and blocks cleanly
-      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      logger.warn('[CORS]', `Blocked request from origin: ${origin}`);
       callback(null, false);
     }
   },
@@ -104,7 +105,7 @@ app.use(passport.session());
 
 // Logging
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);  
+  logger.info('[HTTP]', `${req.method} ${req.url}`);
   next();
 });
 
@@ -124,7 +125,7 @@ const aiLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'AI request limit reached. Please wait before trying again.' }
+  message: { error: 'AI request limit reached. Please try again in about an hour.' }
 });
 
 app.use('/api/', apiLimiter);
@@ -162,7 +163,7 @@ app.use((req, res, next) => {
 // --- Error Handling Middleware ---
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
-  console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, err.message);
+  logger.error('[ERROR]', `${req.method} ${req.originalUrl}: ${err.message}`);
   res.status(statusCode).json({
     success: false,
     error: err.message || "An unexpected error occurred."
@@ -173,6 +174,4 @@ app.use((err, req, res, next) => {
 cleanupOldUploads(1);
 setInterval(() => cleanupOldUploads(1), 60 * 60 * 1000);
 
-// --- Server ---
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;

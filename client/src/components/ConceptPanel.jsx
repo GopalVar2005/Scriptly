@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { explainConcept } from '../services/api';
 import '../styles/ConceptPanel.css';
 
@@ -49,8 +50,8 @@ export default function ConceptPanel({ term, context, onClose, onTermChange }) {
     <div className={`concept-panel ${isOpen ? 'open' : ''}`}>
       <div className="cp-header">
         <h2 className="cp-title" style={{ maxWidth: '80%', overflowWrap: 'break-word' }}>{term}</h2>
-        <button className="cp-close-btn" onClick={handleClose}>
-          ✕
+        <button className="cp-close-btn" onClick={handleClose} aria-label="Close panel">
+          <X size={18} />
         </button>
       </div>
 

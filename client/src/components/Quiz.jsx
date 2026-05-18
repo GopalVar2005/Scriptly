@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Target, Check, X, RotateCcw } from 'lucide-react';
 import { generateQuiz } from '../services/api';
 import '../styles/Quiz.css';
 
@@ -114,7 +115,7 @@ export default function Quiz({ noteId, subject, cachedQuizData }) {
           <p>Test your knowledge with questions generated from "{subject || 'this material'}"</p>
           {error && <div className="quiz-error">{error}</div>}
           <button className="quiz-start-btn" onClick={handleStartQuiz}>
-            Start Quiz 🎯
+            <Target size={16} /> Start Quiz
           </button>
           <div className="quiz-cache-note">
             Questions are generated once and saved for future attempts
@@ -205,7 +206,9 @@ export default function Quiz({ noteId, subject, cachedQuizData }) {
             {results.map((res, i) => (
               <div key={i} className="quiz-result-item">
                 <div className="quiz-result-q">
-                  <span style={{ color: res.wasCorrect ? '#22c55e' : '#ef4444' }}>{res.wasCorrect ? '✓' : '✗'}</span>
+                  <span style={{ color: res.wasCorrect ? '#22c55e' : '#ef4444', display: 'inline-flex', alignItems: 'center' }}>
+                    {res.wasCorrect ? <Check size={16} /> : <X size={16} />}
+                  </span>
                   <span>{res.question}</span>
                 </div>
                 <div className="quiz-result-detail">
@@ -227,7 +230,7 @@ export default function Quiz({ noteId, subject, cachedQuizData }) {
               resetQuizState();
               setPhase("active");
             }}>
-              Retake Quiz
+              <RotateCcw size={15} /> Retake Quiz
             </button>
           </div>
         </div>

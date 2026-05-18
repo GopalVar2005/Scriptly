@@ -17,7 +17,7 @@ function getModeInstruction(mode) {
       return "Be brief. quick_recap max 2 sentences. key_concepts max 3 items, one sentence explanation only. Skip memory_anchors. keywords only the most critical 5.";
     case "first_pass":
     default:
-      return "Focus on giving a clear overview. Keep key_concepts to 3-4 items. Keep potential_exam_questions to 2. Prioritize quick_recap quality.";
+      return "Focus on giving a clear overview. Prioritize quick_recap quality.";
   }
 }
 
@@ -44,45 +44,115 @@ async function executeLLMWithFallback(prompt, primaryModelRef, fallbackModelRef,
   }
 }
 
+/**
+ * Scale output depth based on transcript length.
+ * Short recordings produce concise output. Long lectures get comprehensive coverage.
+ */
+function getContentDepthGuidance(text) {
+  const wordCount = text.split(/\s+/).length;
+
+  if (wordCount > 3000) {
+    return `Content Depth (long transcript — ${wordCount} words detected):
+- quick_recap: 4-6 sentences covering all major themes. The reader should feel the full scope was understood.
+- key_concepts: 5-7 items. Cover all distinct topics discussed.
+- important_to_remember: 5-8 items. Include all critical facts, formulas, definitions.
+- potential_exam_questions: 3-5 questions covering different sections of the material.
+- key_terms: 8-12 glossary entries for all technical/domain terms introduced.
+- memory_anchors: 3-5 anchors for the most complex ideas.
+- keywords: 8-12 tags covering all topics.`;
+  } else if (wordCount > 1000) {
+    return `Content Depth (medium transcript — ${wordCount} words detected):
+- quick_recap: 3-5 sentences giving a meaningful overview.
+- key_concepts: 3-5 items.
+- important_to_remember: 3-5 items.
+- potential_exam_questions: 2-3 questions.
+- key_terms: 5-8 glossary entries.
+- memory_anchors: 2-3 anchors if genuine analogies exist.
+- keywords: 5-8 tags.`;
+  }
+
+  return `Content Depth (short transcript — ${wordCount} words detected):
+- quick_recap: 2-3 concise sentences.
+- key_concepts: 2-3 items.
+- important_to_remember: 2-3 items.
+- potential_exam_questions: 1-2 questions.
+- key_terms: 3-5 glossary entries.
+- memory_anchors: 1-2 if applicable.
+- keywords: 3-5 tags.`;
+}
+
 const getBasePrompt = (text, mode) => {
   const modeInstruction = getModeInstruction(mode);
+  const depthGuidance = getContentDepthGuidance(text);
 
   return `
-You are an expert academic tutor and study assistant. Your goal is to analyze the following user-provided transcript and generate a highly structured study guide perfectly formatted as a JSON object.
+You are an intelligent study partner who has just carefully listened to a lecture. Your job is to distill what was TAUGHT — not summarize what the topic is about.
 
-Mode Guidance:
-${modeInstruction}
+CRITICAL RULES:
 
-You must return ONLY the raw JSON object conforming EXACTLY to the structure below. Do not wrap it in markdown code blocks (\`\`\`json). Just the raw JSON object.
+1. DISTILL UNDERSTANDING, NOT TOPICS.
+   Extract the speaker's key arguments, insights, perspectives, and reasoning — not generic textbook knowledge about the topic.
 
-JSON Structure:
+2. BE TRANSCRIPT-SPECIFIC.
+   Your output must clearly reflect THIS specific lecture. If your explanation could appear in any Wikipedia article or textbook chapter about the same topic, rewrite it to reference the speaker's actual framing, examples, or emphasis.
+
+3. NEVER GENERATE GENERIC FILLER.
+   Do not write: "This is important because it helps us understand..." or "This concept is significant in the field of..."
+   Instead write specifically: what the speaker argued, what distinction they drew, what example they gave, what implication they raised.
+
+4. PRIORITIZE SIGNAL OVER COVERAGE.
+   A few high-quality insights beat many shallow bullet points. Skip trivial or obvious information.
+
+5. FOR ABSTRACT OR ARGUMENT-DRIVEN CONTENT:
+   When the lecture is conceptual, speculative, or idea-heavy with few concrete examples — focus on the speaker's REASONING STRUCTURE: what they argued, what they contrasted with, what they predicted, what implications they drew, and what mental models they used. The value in these lectures is in the thinking pattern, not in factual details.
+
+BEFORE GENERATING THE JSON, internally identify:
+- What is the lecture's CENTRAL ARGUMENT or main thesis?
+- Which ideas are PRIMARY (the lecture's main points) vs. SUPPORTING (examples, evidence, context)?
+- What CONNECTIONS exist between concepts? (cause-effect, contrast, dependency, evolution)
+- What would a student MOST LIKELY FORGET or confuse?
+Let this analysis shape every section — especially quick_recap, key_concepts, and important_to_remember.
+
+Mode: ${modeInstruction}
+
+${depthGuidance}
+
+Return ONLY the raw JSON object below. No markdown fences. No explanation.
+
 {
-  "subject_detected": "string (The core subject area, e.g., 'Molecular Biology' or '19th Century History')",
-  "quick_recap": "string (A concise overview of the entire text)",
+  "subject_detected": "string — The specific subject area (e.g., 'Molecular Biology' or 'Macroeconomic Policy'), not a vague label",
+
+  "quick_recap": "string — A revision-first overview. Start with the lecture's CENTRAL ARGUMENT or dominant insight — not a list of topics. Then layer in supporting ideas in order of importance. The reader should think: 'I understand what this lecture was really about.' Do NOT begin with 'This lecture discusses...' or 'The speaker talks about...'",
+
   "key_concepts": [
     {
-      "concept": "string (The name of the concept)",
-      "explanation": "string (Clear explanation of the concept)",
-      "why_it_matters": "string (Why this concept is important or how it connects to the broader subject)"
+      "concept": "string — Name of a meaningful conceptual idea (not a trivial sub-topic)",
+      "explanation": "string — Explain as the SPEAKER framed it, referencing their argument, example, or perspective. Do NOT write a generic textbook definition. For abstract content, capture the reasoning pattern.",
+      "why_it_matters": "string — Explain how this concept connects to at least one OTHER concept from this lecture (cause, contrast, dependency, or implication). If truly standalone, explain its specific role in the lecture's central argument. NEVER write generic importance statements."
     }
   ],
+
   "important_to_remember": [
-    "string (Crucial facts, dates, steps, or definitions)"
+    "string — High-signal revision points only: things easily confused, easily forgotten, counter-intuitive, or likely to be tested. Each item should make a student think 'I would have forgotten this.' NOT generic facts about the topic."
   ],
+
   "potential_exam_questions": [
     {
-      "question": "string (A likely test question based on the material)",
-      "hint": "string (A brief hint or guide to the answer)"
+      "question": "string — Must be at the APPLY or ANALYZE level. Good stems: 'If [condition changed], how would [concept] behave differently?', 'What is the relationship between [X] and [Y]?', 'Why did the speaker argue [claim] rather than [alternative]?', 'Compare [A] and [B] in terms of [dimension].' Never use simple 'What is X?' recall questions.",
+      "hint": "string — A thinking nudge that guides reasoning without giving the answer. Reference a specific concept or distinction from the lecture."
     }
   ],
+
   "key_terms": {
-    "term": "definition"
+    "term": "definition — ONLY include terms a student would genuinely need defined: difficult vocabulary, domain-specific jargon, technical phrases, culturally specific references. SKIP obvious or common words. Quality over quantity."
   },
+
   "memory_anchors": [
-    "string (Mnemonic device, analogy, or mental imagery to help remember complex ideas)"
+    "string — Create an analogy that maps the PROCESS or RELATIONSHIP, not just the object. Format: '[Concept] is like [familiar thing] because [shared mechanism].' The 'because' clause is what makes it memorable — it encodes WHY the analogy works. If no genuinely useful analogy exists, omit the entry entirely."
   ],
+
   "keywords": [
-    "string (Short tags or topics)"
+    "string — Thematic tags that reinforce the lecture's major topics. Useful for scanning and categorization."
   ]
 }
 

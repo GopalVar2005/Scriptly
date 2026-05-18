@@ -1,1 +1,13 @@
-{}
+{
+  "name": "scriptly",
+  "private": true,
+  "description": "AI-powered study acceleration platform",
+  "scripts": {
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "test:client": "cd client && npm test",
+    "test:server": "cd server && npm test",
+    "test": "npm run test:client && npm run test:server",
+    "install:all": "cd client && npm install && cd ../server && npm install"
+  }
+}

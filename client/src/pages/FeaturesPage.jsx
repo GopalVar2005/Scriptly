@@ -2,6 +2,7 @@ import React from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import FeatureCard from '../components/FeatureCard';
+import { PlaySquare, Layers, Target } from 'lucide-react';
 import '../styles/features.css';
 
 export default function FeaturesPage() {
@@ -17,17 +18,17 @@ export default function FeaturesPage() {
 
         <div className="features-grid">
           <FeatureCard 
-            icon="📺" 
+            icon={<PlaySquare size={24} />}
             title="Convert YouTube Videos into Notes" 
             description="Paste any YouTube lecture or tutorial URL and get AI-generated structured notes with summaries, key concepts, and glossaries." 
           />
           <FeatureCard 
-            icon="🃏" 
+            icon={<Layers size={24} />}
             title="Generate Flashcards from Notes" 
             description="Automatically create study flashcards from your saved notes. Review key terms and concepts with a tap-to-flip interface." 
           />
           <FeatureCard 
-            icon="🎯" 
+            icon={<Target size={24} />}
             title="Review and Learn from Notes" 
             description="Take AI-generated quizzes, explore concept explanations, and use memory anchors to deepen your understanding." 
           />
