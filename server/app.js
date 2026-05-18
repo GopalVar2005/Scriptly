@@ -137,7 +137,7 @@ passport.deserializeUser(User.deserializeUser());
 
 // --- Routes ---
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
 app.use('/api/users', userRoutes);

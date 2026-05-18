@@ -3,6 +3,29 @@
 // In development, falls back to '/api' which is proxied by Vite to localhost:5001
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+async function safeFetch(url, options) {
+  try {
+    const response = await fetch(url, options);
+    if (response.status === 502 || response.status === 503) {
+      throw new Error("Server is waking up, this may take a few seconds. Please try again.");
+    }
+    return response;
+  } catch (error) {
+    if (error.name === 'TypeError') {
+      throw new Error("Server is waking up or temporarily unavailable. Please try again in a few seconds.");
+    }
+    throw error;
+  }
+}
+
+export async function pingBackend() {
+  try {
+    await fetch(`${BASE_URL}/health`);
+  } catch (error) {
+    // Silent fail - warmup ping only
+  }
+}
+
 async function handleResponse(response, { raw = false } = {}) {
   const json = await response.json().catch(() => null);
   if (!response.ok) {
@@ -26,7 +49,7 @@ async function handleResponse(response, { raw = false } = {}) {
 }
 
 export async function login(email, password) {
-  const response = await fetch(`${BASE_URL}/users/login`, {
+  const response = await safeFetch(`${BASE_URL}/users/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -36,7 +59,7 @@ export async function login(email, password) {
 }
 
 export async function logout() {
-  const response = await fetch(`${BASE_URL}/users/logout`, {
+  const response = await safeFetch(`${BASE_URL}/users/logout`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -44,7 +67,7 @@ export async function logout() {
 }
 
 export async function register(email, password) {
-  const response = await fetch(`${BASE_URL}/users/register`, {
+  const response = await safeFetch(`${BASE_URL}/users/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -57,7 +80,7 @@ export async function transcribe(audioBlob) {
   const formData = new FormData();
   formData.append("audio", audioBlob, "recording.webm");
 
-  const response = await fetch(`${BASE_URL}/transcribe/transcribe`, {
+  const response = await safeFetch(`${BASE_URL}/transcribe/transcribe`, {
     method: "POST",
     body: formData,
     credentials: 'include'
@@ -66,7 +89,7 @@ export async function transcribe(audioBlob) {
 }
 
 export async function summarize(text, mode = 'first_pass') {
-  const response = await fetch(`${BASE_URL}/summarize`, {
+  const response = await safeFetch(`${BASE_URL}/summarize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, mode }),
@@ -78,7 +101,7 @@ export async function summarize(text, mode = 'first_pass') {
 // ===== NOTES API ===== //
 
 export async function saveNote(data) {
-  const response = await fetch(`${BASE_URL}/notes`, {
+  const response = await safeFetch(`${BASE_URL}/notes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -89,7 +112,7 @@ export async function saveNote(data) {
 
 export async function getNotes({ page = 1, limit = 12, sort = 'newest' } = {}) {
   const params = new URLSearchParams({ page, limit, sort });
-  const response = await fetch(`${BASE_URL}/notes?${params}`, {
+  const response = await safeFetch(`${BASE_URL}/notes?${params}`, {
     method: "GET",
     credentials: "include"
   });
@@ -98,7 +121,7 @@ export async function getNotes({ page = 1, limit = 12, sort = 'newest' } = {}) {
 }
 
 export async function getNoteById(id) {
-  const response = await fetch(`${BASE_URL}/notes/${id}`, {
+  const response = await safeFetch(`${BASE_URL}/notes/${id}`, {
     method: "GET",
     credentials: "include"
   });
@@ -106,7 +129,7 @@ export async function getNoteById(id) {
 }
 
 export async function updateNote(id, updatedData) {
-  const response = await fetch(`${BASE_URL}/notes/${id}`, {
+  const response = await safeFetch(`${BASE_URL}/notes/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updatedData),
@@ -117,7 +140,7 @@ export async function updateNote(id, updatedData) {
 
 
 export async function deleteNote(id) {
-  const response = await fetch(`${BASE_URL}/notes/${id}`, {
+  const response = await safeFetch(`${BASE_URL}/notes/${id}`, {
     method: "DELETE",
     credentials: "include"
   });
@@ -125,7 +148,7 @@ export async function deleteNote(id) {
 }
 
 export async function explainConcept(term, context = "", level = "simple") {
-  const response = await fetch(`${BASE_URL}/explain`, {
+  const response = await safeFetch(`${BASE_URL}/explain`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -135,7 +158,7 @@ export async function explainConcept(term, context = "", level = "simple") {
 }
 
 export async function generateQuiz(noteId) {
-  const response = await fetch(`${BASE_URL}/quiz/generate/${noteId}`, {
+  const response = await safeFetch(`${BASE_URL}/quiz/generate/${noteId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include"
@@ -144,7 +167,7 @@ export async function generateQuiz(noteId) {
 }
 
 export async function processYouTubeUrl(url) {
-  const response = await fetch(`${BASE_URL}/youtube/process`, {
+  const response = await safeFetch(`${BASE_URL}/youtube/process`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -154,7 +177,7 @@ export async function processYouTubeUrl(url) {
 }
 
 export async function fetchYouTubeMetadata(url, signal) {
-  const response = await fetch(`${BASE_URL}/youtube/metadata`, {
+  const response = await safeFetch(`${BASE_URL}/youtube/metadata`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',

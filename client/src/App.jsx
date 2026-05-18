@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { pingBackend } from './services/api';
 
 import HomePage from './pages/HomePage';
 import FeaturesPage from './pages/FeaturesPage';
@@ -16,6 +17,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 import './styles/global.css';
 
 function App() {
+  useEffect(() => {
+    // Lightweight warmup ping to wake up free-tier backend
+    pingBackend();
+  }, []);
+
   return (
     <ErrorBoundary>
     <Router>
