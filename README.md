@@ -1,6 +1,8 @@
-# Scriptly
+# Scriptly — AI Study Platform
 
 > Turn lectures into exam-ready study material in minutes.
+
+[Live demo](https://scriptly-ashen.vercel.app/) · [Report an issue](https://github.com/GopalVar2005/Scriptly/issues)
 
 Scriptly is an AI-powered study acceleration platform that transforms raw audio, video, and YouTube lectures into highly structured study guides. It goes beyond simple transcription by generating key concepts, flashcards, quizzes, and guided active-recall revision flows to reduce study time and improve retention.
 
